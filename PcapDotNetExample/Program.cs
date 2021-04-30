@@ -1,61 +1,51 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using PcapDotNet.Core;
 using PcapDotNet.Packets;
 using PcapDotNet.Packets.IpV4;
 using PcapDotNet.Packets.Transport;
 
-namespace PcapDotNetExample
+namespace InterpretingThePackets
 {
     class Program
     {
-        private const string FileName = "SV.pcap";
+
+        private static int counter;
+        private static string[][] arr = new string[18317][];
         static void Main(string[] args)
         {
-            if(FileExists(FileName))
-            {
-                //Подлючаемся к файлу 
-                OfflinePacketDevice selectedDevice = new OfflinePacketDevice(FileName);
-                // Открываем
-                using ( PacketCommunicator communicator = selectedDevice.Open(100, PacketDeviceOpenAttributes.Promiscuous, 1000) )
-                {
-                    Packet packet; // наш пакет
-                    do
-                    {
-                        PacketCommunicatorReceiveResult result = communicator.ReceivePacket(out packet);
-                        switch ( result )
-                        {
-                            case PacketCommunicatorReceiveResult.Timeout: 
-                                // превышен лимит
-                            continue;
-                            case PacketCommunicatorReceiveResult.Ok:
-                            //чтение 
-                            Console.WriteLine(packet.Ethernet.Arp.Operation);
-                            Console.WriteLine(packet.Ethernet.Destination);
-                            break;
-                            default:
-                                //ошибка
-                            throw new Exception();
-                        }
-                    } while ( true );
-                }
-            }
-            else
-            {
-                Console.WriteLine("Нет указаного файла {0}", FileName);
-            }
-            
 
+            PacketDevice selectedDevice = new OfflinePacketDevice("SV.pcap");
 
+            // Open the device
+            using ( PacketCommunicator communicator = selectedDevice.Open(65536, PacketDeviceOpenAttributes.Promiscuous, 1000) )
+            {
+                communicator.ReceivePackets(0, PacketHandler);
+            }
+            Console.WriteLine(arr);
             Console.ReadLine();
-
         }
 
-        public static bool FileExists(string path)
+        // Callback function invoked by libpcap for every incoming packet
+        private static void PacketHandler(Packet packet)
         {
-            return File.Exists(path);
+            //DEBUG MODE
+            //Console.WriteLine(packet);
+
+            counter++;
+
+            arr[counter - 1] = new string[4] {
+                counter.ToString(),
+                packet.Ethernet.Arp.HardwareType.ToString(),
+                packet.Ethernet.Source.ToString(),
+                packet.Ethernet.Destination.ToString()
+            };
+
+            //Console.WriteLine("ID: " + counter++);
+            //Console.WriteLine("APP ID: {0}", packet.Ethernet.Arp.HardwareType.ToString()); // APP ID
+            //Console.WriteLine("MAC SOURCE: {0}", packet.Ethernet.Source.ToString());
+            //Console.WriteLine("MAC Destination: {0}", packet.Ethernet.Destination.ToString());
+
         }
     }
 }
